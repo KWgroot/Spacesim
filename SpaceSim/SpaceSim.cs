@@ -16,6 +16,7 @@ namespace SpaceSim
         GraphicsDeviceManager graphDev;
         Color background = new Color(2, 0, 6);
         public static SpaceSim World;
+        Random random = new Random();
         Vector3 cameraPosition = new Vector3(0f, 30f, 80f);
         Vector3 cameraLookAt = new Vector3(0f, 0f, 0f);
         Matrix cameraOrientationMatrix = Matrix.Identity;
@@ -25,7 +26,7 @@ namespace SpaceSim
 
         List<Sphere> spheres;
 
-        Sphere sun;
+        Sphere sun, earth, mars, jupiter, saturn, uranus, moon;
 
         Spaceship spaceship;
         Vector3 spaceshipPosition = new Vector3(0f, 28f, 77f);
@@ -76,9 +77,13 @@ namespace SpaceSim
             spheres = new List<Sphere>();
 
 
-            spheres.Add(sun = new Sphere(Matrix.Identity, Color.White, 30));
-
-
+            spheres.Add(sun = new Sphere(Matrix.Identity, Color.Yellow, 30, 2));
+            spheres.Add(earth = new Sphere(Matrix.Identity, Color.DeepSkyBlue, 30, 1, 16, random.Next(0, 360), 0.3f));
+            spheres.Add(mars = new Sphere(Matrix.Identity, Color.Red, 30, 0.6f, 21, random.Next(0, 360), 0.35f));
+            spheres.Add(jupiter = new Sphere(Matrix.Identity, Color.Orange, 30, 1.7f, 27, random.Next(0, 360), 0.4f));
+            spheres.Add(saturn = new Sphere(Matrix.Identity, Color.Khaki, 30, 1.6f, 36, random.Next(0, 360), 0.45f));
+            spheres.Add(uranus = new Sphere(Matrix.Identity, Color.Cyan, 30, 1.5f, 43, random.Next(0, 360), 0.5f));
+            spheres.Add(moon = new Sphere(Matrix.Identity, Color.LightGray, 30, 0.5f));
 
             base.Initialize();
         }
@@ -152,7 +157,15 @@ namespace SpaceSim
 
             skybox.Transform = Matrix.CreateScale(1000f) * Matrix.CreateTranslation(cameraPosition);
 
+            mars.Transform *= Matrix.CreateRotationY(mars.rotSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds);
+            jupiter.Transform *= Matrix.CreateRotationY(jupiter.rotSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds);
+            saturn.Transform *= Matrix.CreateRotationY(saturn.rotSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds);
+            uranus.Transform *= Matrix.CreateRotationY(uranus.rotSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds);
+            earth.Transform *= Matrix.CreateRotationY(earth.rotSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds);
 
+            moon.Transform = Matrix.CreateScale(0.5f) * Matrix.CreateTranslation(2, 0, 0) *
+                Matrix.CreateRotationY(moon.rotSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds) *
+                Matrix.CreateRotationZ(MathHelper.PiOver4 * (float)gameTime.ElapsedGameTime.TotalSeconds) * earth.Transform;
 
             base.Update(gameTime);
         }

@@ -37,12 +37,15 @@ namespace SpaceSim
         GraphicsDevice graphics;
         int numVertices;
         public Matrix Transform;
+        public float rotSpeed;
         Color color;
-        public Sphere(Matrix transform, Color color, int numVertices)
+
+        public Sphere(Matrix transform, Color color, int numVertices, float scale = 1, float radius = 0, float randomPos = 0, float rotSpeed = 0)
         {
             this.Transform = transform;
             this.color = color;
             this.numVertices = numVertices;
+            this.rotSpeed = rotSpeed;
             graphics = SpaceSim.World.GraphicsDevice;
             effect = new BasicEffect(SpaceSim.Graphics);
             effect.EnableDefaultLighting();
@@ -55,7 +58,19 @@ namespace SpaceSim
             vbuffer.SetData<VertexPositionColorNormal>(vertices);
             ibuffer.SetData<short>(indices);
             effect.VertexColorEnabled = true;
+            Scale = scale;
+            Transform *= Matrix.CreateTranslation(radius, 0, 0);
+            Transform *= Matrix.CreateRotationY(MathHelper.ToRadians(randomPos));
         }
+
+        public float Scale
+        {
+            set
+            {
+                Transform *= Matrix.CreateScale(value);
+            }
+        }
+
         void createVertices() // Note: This can be done a lot more efficiently if multiple spheres have the same number of vertices
         {
             vertices = new VertexPositionColorNormal[nvertices];
