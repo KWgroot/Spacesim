@@ -23,8 +23,10 @@ namespace SpaceSim
         public Matrix View;
         public Matrix Projection;
         public static GraphicsDevice Graphics;
+        Vector2 distanceFromCenter;
 
         List<Sphere> spheres;
+        List<Bullet> bullets;
 
         Sphere sun, earth, mars, jupiter, saturn, uranus, moon;
 
@@ -42,7 +44,9 @@ namespace SpaceSim
         Point mousePosition;
         bool wKeyDown, aKeyDown, sKeyDown, dKeyDown;
         bool mouseButton, mouseDown, lastMouseButton;
-        float reticleHalfWidth, reticleHalfHeight;
+        bool bulRemove;
+        int bulIndex;
+        float reticleHalfWidth, reticleHalfHeight, rollFactor = 0f, shipVelocity, dragFactor = 0.8f;
 
         Vector2 screenCenter;
 
@@ -70,20 +74,22 @@ namespace SpaceSim
 #endif
             graphDev.ApplyChanges();
 
+            screenCenter = new Vector2(Window.ClientBounds.Width / 2, Window.ClientBounds.Height / 2);
+
             SetupCamera(true);
             Window.Title = "HvA - Simulation & Physics - Opdracht 6 - SpaceSim";
             spriteBatch = new SpriteBatch(Graphics);
 
             spheres = new List<Sphere>();
+            bullets = new List<Bullet>();
 
-
-            spheres.Add(sun = new Sphere(Matrix.Identity, Color.Yellow, 30, 2));
-            spheres.Add(earth = new Sphere(Matrix.Identity, Color.DeepSkyBlue, 30, 1, 16, random.Next(0, 360), 0.3f));
-            spheres.Add(mars = new Sphere(Matrix.Identity, Color.Red, 30, 0.6f, 21, random.Next(0, 360), 0.35f));
-            spheres.Add(jupiter = new Sphere(Matrix.Identity, Color.Orange, 30, 1.7f, 27, random.Next(0, 360), 0.4f));
-            spheres.Add(saturn = new Sphere(Matrix.Identity, Color.Khaki, 30, 1.6f, 36, random.Next(0, 360), 0.45f));
-            spheres.Add(uranus = new Sphere(Matrix.Identity, Color.Cyan, 30, 1.5f, 43, random.Next(0, 360), 0.5f));
-            spheres.Add(moon = new Sphere(earth.Transform, Color.LightGray, 30, 0.5f, 2, 0, 1.5f));
+            spheres.Add(sun = new Sphere(Matrix.Identity, Color.Yellow, 30, 0, 2));
+            spheres.Add(earth = new Sphere(Matrix.Identity, Color.DeepSkyBlue, 30, 16, 1, random.Next(0, 360), 0.15f));
+            spheres.Add(mars = new Sphere(Matrix.Identity, Color.Red, 30, 21, 0.6f, random.Next(0, 360), 0.2375f));
+            spheres.Add(jupiter = new Sphere(Matrix.Identity, Color.Orange, 30, 27, 1.7f, random.Next(0, 360), 0.325f));
+            spheres.Add(saturn = new Sphere(Matrix.Identity, Color.Khaki, 30, 36, 1.6f, random.Next(0, 360), 0.4125f));
+            spheres.Add(uranus = new Sphere(Matrix.Identity, Color.Cyan, 30, 43, 1.5f, random.Next(0, 360), 0.5f));
+            spheres.Add(moon = new Sphere(earth.Transform, Color.LightGray, 30, 2, 0.5f, 0, 1.5f));
 
             base.Initialize();
         }
@@ -112,7 +118,6 @@ namespace SpaceSim
             if (initialize) Projection = Matrix.CreatePerspectiveFieldOfView(MathHelper.PiOver4, SpaceSim.World.GraphicsDevice.Viewport.AspectRatio, 0.1f, 2000.0f);
         }
 
-        int i = 0;
         protected override void Draw(GameTime gameTime)
         {
             base.Draw(gameTime);
@@ -128,7 +133,12 @@ namespace SpaceSim
                 sphere.Draw();
             }
 
+            foreach (Sphere bullet in bullets)
+            {
+                bullet.Draw();
+            }
 
+            spaceship.Draw();
 
             spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearWrap, DepthStencilState.Default, RasterizerState.CullCounterClockwise);
             spriteBatch.Draw(reticle, new Vector2(mousePosition.X - reticleHalfWidth, mousePosition.Y - reticleHalfHeight), Color.White);
@@ -157,12 +167,42 @@ namespace SpaceSim
 
             skybox.Transform = Matrix.CreateScale(1000f) * Matrix.CreateTranslation(cameraPosition);
 
+            distanceFromCenter.X = (screenCenter.X - mousePosition.X) / 15000;
+            distanceFromCenter.Y = (screenCenter.Y - mousePosition.Y) / 15000;
+
+            if (aKeyDown)
+            {
+                rollFactor -= .5f;
+            }
+            if (dKeyDown)
+            {
+                rollFactor += .5f;
+            }
+            rollFactor *= dragFactor;
+            MathHelper.Clamp(rollFactor, -200, 200);
+
+            if (wKeyDown)
+            {
+                shipVelocity += 2f;
+            }
+            if (sKeyDown)
+            {
+                shipVelocity -= 2f;
+            }
+            shipVelocity *= dragFactor;
+            MathHelper.Clamp(shipVelocity, -100, 100);
+
+            spaceship.Transform *= shipVelocity * (float)gameTime.ElapsedGameTime.TotalSeconds;
+            spaceshipPosition += spaceship.Transform.Forward;
+
+            RotateOrientationMatrixByYawPitchRoll(ref spaceshipOrientationMatrix, distanceFromCenter.X, distanceFromCenter.Y, rollFactor * (float)gameTime.ElapsedGameTime.TotalSeconds);
+            spaceship.Transform = spaceshipOrientationMatrix * Matrix.CreateTranslation(spaceshipPosition);
+
             foreach (Sphere sphere in spheres)
             {
                 if (sphere != moon)
                 {
                     rotMatrix = Matrix.Identity;
-
                     rotMatrix *= Matrix.CreateRotationY(MathHelper.ToRadians(sphere.rotSpeed));
                     sphere.Transform *= rotMatrix;
                 }
@@ -177,6 +217,29 @@ namespace SpaceSim
                     sphere.Transform = rotMatrix;
                 }
             }
+
+            bulletSpawnPosition = Vector3.Transform(spaceshipLookAtPoint, spaceship.Transform);
+            if (mouseDown && mouseButton)
+            {
+                bullets.Add(new Bullet(bulletSpawnPosition, spaceship.Transform.Forward, spaceship.Transform.Down));
+            }
+
+            foreach (Bullet thisBullet in bullets)
+            {
+                thisBullet.Transform *= Matrix.CreateTranslation(spaceship.Transform.Forward / 5);
+                if (thisBullet.startPos.Length() - new Vector3(thisBullet.Transform.M41, thisBullet.Transform.M42, thisBullet.Transform.M43).Length() > 200)
+                {
+                    bulIndex = bullets.IndexOf(thisBullet);
+                    bulRemove = true;
+                }
+            }
+
+            if (bulRemove)
+            {
+                bullets.RemoveAt(bulIndex);
+                bulRemove = false;
+            }
+
 
             base.Update(gameTime);
         }

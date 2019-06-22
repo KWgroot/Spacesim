@@ -17,7 +17,8 @@ namespace SpaceSim
 
             VertexDeclaration IVertexType.VertexDeclaration
             {
-                get {
+                get
+                {
                     return new VertexDeclaration
           (
               new VertexElement(0, VertexElementFormat.Vector3, VertexElementUsage.Position, 0),
@@ -37,15 +38,18 @@ namespace SpaceSim
         GraphicsDevice graphics;
         int numVertices;
         public Matrix Transform;
-        public float rotSpeed;
         Color color;
+        public float radius;
+        public float yRot;
+        public float rotSpeed;
 
-        public Sphere(Matrix transform, Color color, int numVertices, float scale = 1, float radius = 0, float randomPos = 0, float rotSpeed = 0)
+        public Sphere(Matrix transform, Color color, int numVertices, float radius = 0, float scale = 1, float yRotation = 0, float rotSpeed = 0)
         {
+
             this.Transform = transform;
+            Matrix empty = this.Transform;
             this.color = color;
             this.numVertices = numVertices;
-            this.rotSpeed = rotSpeed;
             graphics = SpaceSim.World.GraphicsDevice;
             effect = new BasicEffect(SpaceSim.Graphics);
             effect.EnableDefaultLighting();
@@ -59,8 +63,15 @@ namespace SpaceSim
             ibuffer.SetData<short>(indices);
             effect.VertexColorEnabled = true;
             Scale = scale;
-            Transform *= Matrix.CreateTranslation(radius, 0, 0);
-            Transform *= Matrix.CreateRotationY(MathHelper.ToRadians(randomPos));
+            this.radius = radius;
+            yRot = yRotation;
+            this.rotSpeed = rotSpeed;
+
+
+
+            empty *= Matrix.CreateTranslation(radius, 0, 0);
+            empty *= Matrix.CreateRotationY(MathHelper.ToRadians(yRotation));
+            Transform *= empty;
         }
 
         public float Scale
@@ -68,6 +79,9 @@ namespace SpaceSim
             set
             {
                 Transform *= Matrix.CreateScale(value);
+                //Transform.M11 *= value;
+                //Transform.M22 *= value;
+                //Transform.M33 *= value;
             }
         }
 
